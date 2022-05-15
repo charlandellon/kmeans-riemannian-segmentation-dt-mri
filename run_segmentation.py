@@ -14,14 +14,32 @@ max_iterations = 100
 metric_type = 'euclidean'
 
 namebase = 'stanford_hardi_atualizado'
+
+
+# dataset DTI image used in the segmentation 
+input_file = 'stanford_hardi_denoised_dti.nii.gz'
+
+# directory to save results of the segmentation. This 
+# directory is named according input_file dataset name.
 namebase_output = f'stanford_hardi_{metric_type}_{expoent}_classes_{n_claster}'
+
+'''
+    For dataset filtered with DTI filter, uncomment and use 
+    the following 2 lines. Don't forget to change the output
+    directory name according to the input_file name for not 
+    to override the results existents.
+'''
+  
+#input_file = 'stanford_hardi_denoised_dti_smooth_media.nii.gz'
+#namebase_output = f'stanford_hardi_smooth_media_{metric_type}_{expoent}_classes_{n_claster}'
+
 
 
 inputpath = os.path.sep.join(['dataset', 'input', 'dti', namebase])
 outputpath = os.path.sep.join(['dataset', 'output', namebase_output])
 
 
-fdti = os.path.sep.join([inputpath, 'stanford_hardi_denoised_dti.nii.gz'])
+fdti = os.path.sep.join([inputpath, input_file])
 fclass = os.path.sep.join([inputpath, f'stanford_hardi_denoised_segmentation_fa_{n_claster}_classes.nii.gz'])
 fmask = os.path.sep.join([inputpath, 'stanford_hardi_denoised_mask.nii.gz'])
 
