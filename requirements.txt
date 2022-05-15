@@ -1,0 +1,11 @@
+numpy
+numba
+matplotlib
+nibabel
+fury
+dipy
+pymanopt
+geomstats
+cython
+easycython
+tensorflow
