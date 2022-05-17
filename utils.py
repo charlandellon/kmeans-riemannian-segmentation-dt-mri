@@ -18,6 +18,7 @@ from dipy.reconst.dti import fractional_anisotropy, color_fa
 from pymanopt.solvers.linesearch import LineSearchAdaptive
 
 
+
 class FilterDti():
 
     def __init__(self, manifold, tensorfield, tensormask=None, make_grad=True, typefilter='avg', s=3, eps=1e-4):
