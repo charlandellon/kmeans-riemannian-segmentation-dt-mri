@@ -155,4 +155,11 @@ for k, fatias in fatias_dic.items():
         m.reset_state()
         
     np.savetxt(iou_file, np.array(result_metrica))
+
+
+    
+
+
+
+    
         
