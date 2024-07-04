@@ -9,3 +9,6 @@ geomstats
 cython
 easycython
 tensorflow
+xarray
+spyder-kernels==2.5
+spyder
