@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from dipy.data import get_fnames
 from dipy.segment.tissue import TissueClassifierHMRF
-import time
+# import time
 
 from dipy.io.image import load_nifti, save_nifti
 from dipy.io.gradients import read_bvals_bvecs
@@ -63,11 +63,12 @@ ax.flat[1].set_title('Denoised Output')
 ax.flat[2].imshow(rms_diff.T, cmap='gray', interpolation='none',
                   origin='lower')
 ax.flat[2].set_title('Residuals')
+plt.show()
 
 gtab = gradient_table(bvals, bvecs)
 
-maskdata, mask = median_otsu(data, vol_idx=range(0, 10), median_radius=2,
-                             numpass=6, autocrop=True, dilate=None)
+maskdata, mask = median_otsu(denoised_arr, vol_idx=range(0, 9), median_radius=4,
+                             numpass=4, autocrop=True, dilate=None)
 
 save_nifti(os.path.sep.join([inputpath,'stanford_hardi_denoised_maskdata.nii.gz']), maskdata, affine)
 save_nifti(os.path.sep.join([inputpath,'stanford_hardi_denoised_mask.nii.gz']), mask.astype(np.int16), affine)
@@ -86,31 +87,48 @@ maskdata_xr = xr.DataArray(maskdata.astype(np.float32),
                        dims=['sagital', 'coronal', 'axial', 'direction'],
                        )
 
-maskdata_xr.sel(axial=25, direction=20).plot()
+
+for ax, d in zip([35, 35],[0, 50]):
+    maskdata_xr.sel(axial=ax, direction=d).transpose().plot(cmap='gray')
+    plt.savefig(f'axial_{ax}_direction_{d}.png', bbox_inches='tight', dpi=300)
+    plt.close()
+    
+    maskdata_xr.sel(coronal=ax, direction=d).transpose().plot(cmap='gray')
+    plt.savefig(f'coronal_{ax}_direction_{d}.png', bbox_inches='tight', dpi=300)
+    plt.close()
+    
+    maskdata_xr.sel(sagital=ax, direction=d).transpose().plot(cmap='gray')
+    plt.savefig(f'sagital_{ax}_direction_{d}.png', bbox_inches='tight', dpi=300)
+    plt.close()
+    
+   
+
+
+plt.show()
 
 data = maskdata
 
-q = np.percentile(data, 99)
+q = np.percentile(data.mean(axis=-1), 99)
 
-mask = data[...,0] > q
+mask = data[..., 0] > q
 
 fig = plt.figure()
 a = fig.add_subplot(1, 3, 1)
-img_ax = np.rot90(data[:, :, 30, 0])
+img_ax = np.rot90(data[:, :, 40, 0])
 imgplot = plt.imshow(img_ax, cmap="gray")
 a.axis('off')
 a.set_title('Axial')
 a = fig.add_subplot(1, 3, 2)
-img_cor = np.rot90(data[:, 30, :, 0])
+img_cor = np.rot90(data[:, 40, :, 0])
 imgplot = plt.imshow(img_cor, cmap="gray")
 a.axis('off')
 a.set_title('Coronal')
 a = fig.add_subplot(1, 3, 3)
-img_cor = np.rot90(mask[:, :, 30])
+img_cor = np.rot90(mask[:, :, 40])
 imgplot = plt.imshow(img_cor, cmap="gray")
 a.axis('off')
 a.set_title('Mask axial')
-
+plt.show()
 
 tenmodel = dti.TensorModel(gtab)
 tenfit = tenmodel.fit(maskdata, mask=mask)
@@ -150,24 +168,54 @@ sphere = get_sphere('repulsion724')
 
 from dipy.viz import window, actor
 
-# Enables/disables interactive visualization
-interactive = False
 
-scene = window.Scene()
 
-evals = tenfit.evals[13:43, 44:74, 28:29]
-evecs = tenfit.evecs[13:43, 44:74, 28:29]
+evals = tenfit.evals
+evecs = tenfit.evecs
 
-cfa = RGB[13:43, 44:74, 28:29]
+cfa = RGB
 cfa /= cfa.max()
 
-scene.add(actor.tensor_slicer(evals, evecs, scalar_colors=cfa, sphere=sphere,
-                              scale=0.3))
+# Escolha o eixo e a fatia que você quer visualizar
+# eixo = 'sagital'  # Altere para 'Y' ou 'Z' para visualizar nos planos XY ou YZ
+# indice_fatia = 35  # Altere para o índice da fatia que você quer visualizar
 
-print('Saving illustration as tensor_ellipsoids.png')
-window.record(scene, n_frames=1, out_path='tensor_ellipsoids.png',
-              size=(600, 600))
-if interactive:
-    window.show(scene)
+for eixo, indice_fatia in zip(['sagital', 'coronal', 'axial'], [35, 35, 35]):
+    scene = window.Scene()
     
-scene.clear()
+    if eixo == 'sagital':
+        evals_fatia = np.moveaxis(evals[indice_fatia:indice_fatia+1, :, :], 0, 2)
+        evecs_fatia = np.moveaxis(evecs[indice_fatia:indice_fatia+1, :, :], 0, 2)
+        cfa_fatia = np.moveaxis(cfa[indice_fatia:indice_fatia+1, :, :], 0, 2)
+    elif eixo == 'coronal':
+        evals_fatia = np.moveaxis(evals[:, indice_fatia:indice_fatia+1, :], 1, 2)
+        evecs_fatia = np.moveaxis(evecs[:, indice_fatia:indice_fatia+1, :], 1, 2)
+        cfa_fatia = np.moveaxis(cfa[:, indice_fatia:indice_fatia+1, :], 1, 2)
+        
+    elif eixo == 'axial':
+        evals_fatia = evals[:, :, indice_fatia:indice_fatia+1]
+        evecs_fatia = evecs[:, :, indice_fatia:indice_fatia+1]
+        cfa_fatia = cfa[:, :, indice_fatia:indice_fatia+1]
+    
+    
+    # Criação do ator tensor slicer para a fatia escolhida
+    tensor_actor = actor.tensor_slicer(evals_fatia, evecs_fatia, scalar_colors=cfa_fatia, sphere=sphere, scale=0.8, opacity=1.0)
+    
+    if tensor_actor is not None:
+        scene.add(tensor_actor)
+        
+        # Define a cor do fundo da cena (R, G, B)
+        scene.background((0, 0, 0))  # Branco
+    
+        # Ajusta a câmera para visualizar a fatia de frente
+        scene.reset_camera()
+        # scene.set_camera(position=pos_camera, focal_point=focal_point, view_up=view_up)
+        scene.zoom(1.5)  # Ajuste o fator de zoom conforme necessário
+    
+        print('Saving illustration as tensor_ellipsoids.png')
+        window.record(scene, n_frames=1, out_path=f'tensor_ellipsoids_{eixo}_slice_{indice_fatia}.png', size=(800, 800), magnification=1)
+    else:
+        print("Erro: tensor_actor é None.")
+        
+    camera_position, focal_point, view_up = scene.get_camera()
+    print(f"Posição da câmera: {camera_position}")
