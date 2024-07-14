@@ -181,7 +181,7 @@ for k, fatias in fatias_dic.items():
         # Criação do ator tensor slicer para a fatia escolhida
         tensor_actor = actor.tensor_slicer(evals_fatia, evecs_fatia, 
                                            scalar_colors=cfa_fatia, 
-                                           sphere=sphere, scale=0.8, 
+                                           sphere=sphere, scale=0.7, 
                                            opacity=1.0, mask=mask_f)
         
         if tensor_actor is not None:
