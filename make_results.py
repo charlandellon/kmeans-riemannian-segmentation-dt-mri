@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from dipy.io.image import load_nifti, save_nifti
 from tensorflow.keras.metrics import MeanIoU
+from dipy.reconst.dti import decompose_tensor, color_fa, fractional_anisotropy
+
 
 '''
 This function is responsible for calculating the 
@@ -25,6 +27,26 @@ file_volume_ref = os.path.sep.join([inputpath, f'stanford_hardi_denoised_segment
 
 file_volume_seg = os.path.sep.join([outputpath, 'segmented', 'data', 'segmented_DTI_3D.nii.gz'])
 
+fmask = os.path.sep.join([inputpath, 'stanford_hardi_denoised_mask.nii.gz'])
+mask, _ = load_nifti(fmask)
+mask = mask.astype(np.bool8)
+
+# dataset DTI image used in the segmentation 
+input_file = 'stanford_hardi_denoised_dti.nii.gz'
+dti_dir = os.path.sep.join([outputpath, 'dti', 'images'])
+if not os.path.exists(dti_dir):
+    os.makedirs(dti_dir)
+
+fdti = os.path.sep.join([inputpath, input_file])
+dti, affine = load_nifti(fdti)
+evals, evecs = decompose_tensor(dti)
+FA = fractional_anisotropy(evals)
+FA[np.isnan(FA)] = 0
+FA = np.clip(FA, 0, 1)
+RGB = color_fa(FA, evecs)
+cfa = RGB
+cfa /= cfa.max()
+
 class_referencia, affine = load_nifti(file_volume_ref)
 volume_segmented, _ = load_nifti(file_volume_seg)
 
@@ -46,6 +68,7 @@ a = fig.add_subplot(1, 2, 2)
 plt.imshow(np.rot90(volume_segmented[:,:, 35]))
 a.axis('off')
 a.set_title('Segmentação Riemanniana')
+plt.show()
 
 # Run the function up to this point to verify that 
 # the classes are in the correct places
@@ -67,12 +90,12 @@ idx_class_2 = np.where(volume_segmented == 2) #cor (0, 1, 0)
 #if the classes of segmented volume are out of order we must 
 # correct them from the indices of indices of reference images color!
 
-volume_segmented[idx_class_1] = 3
-volume_segmented[idx_class_2] = 2
+volume_segmented[idx_class_1] = 2
+volume_segmented[idx_class_2] = 1
 # volume_segmented[idx_class_3] = 1 # For 3 or 4 classes uncomment this line
 # volume_segmented[idx_class_4] = 4 # For 4 classes uncomment this line
 
-cor_seg[idx_class_1] = (0, 0, 1)
+cor_seg[idx_class_1] = (1, 0, 0)
 cor_seg[idx_class_2] = (0, 1, 0)
 # cor_seg[idx_class_3] = (1, 0, 0) # For 3 or 4 classes uncomment this line
 # cor_seg[idx_class_4] = (1, 1, 0) # For 4 classes uncomment this line
@@ -86,6 +109,7 @@ a = fig.add_subplot(1, 2, 2)
 plt.imshow(np.rot90(cor_seg[..., 35, :]))
 a.axis('off')
 a.set_title('Segmentação Riemanniana')
+plt.show()
 
 
 fatias_sagital = np.arange(0, class_referencia.shape[0], 5)
@@ -102,6 +126,10 @@ m.update_state(class_referencia.flat, volume_segmented.flat)
 np.savetxt(iou_file_total, np.array(m.result().numpy()).reshape((-1,1)))
         
 m.reset_state()
+
+from dipy.data import get_sphere
+sphere = get_sphere('repulsion724')
+from dipy.viz import window, actor
             
 for k, fatias in fatias_dic.items():
     
@@ -114,12 +142,19 @@ for k, fatias in fatias_dic.items():
         data_seg = os.path.sep.join([outputpath, 'segmented', 'data', f'segmented_DTI_3D_slice_{v}_'+ k +'.nii.gz'])
         img_seg = os.path.sep.join([outputpath, 'segmented', 'images', f'segmented_DTI_3D_slice_{v}_'+ k +'.png'])
         img_ref = os.path.sep.join([outputpath, 'segmented', 'images', f'referencia_DTI_3D_slice_{v}_'+ k +'.png'])
+        img_dti = os.path.sep.join([dti_dir, f'DTI_3D_slice_{v}_'+ k +'.png'])
         
+        scene = window.Scene()
+
         if k == 'sagital':
             image_ref = class_referencia[v,:,:]
             image_seg = volume_segmented [v,:,:]
             im_cor_ref = cor_ref[v, :, :, :]
             im_cor_seg = cor_seg[v, :, :, :]
+            evals_fatia = np.moveaxis(evals[v:v+1, :, :], 0, 2)
+            evecs_fatia = np.moveaxis(evecs[v:v+1, :, :], 0, 2)
+            cfa_fatia = np.moveaxis(cfa[v:v+1, :, :], 0, 2)
+            mask_f = np.moveaxis(mask[v:v+1, :, :], 0, 2)
             
             
         elif k == 'coronal':
@@ -127,12 +162,45 @@ for k, fatias in fatias_dic.items():
             image_seg = volume_segmented [:,v,:]
             im_cor_ref = cor_ref[:, v, :, :]
             im_cor_seg = cor_seg[:, v, :, :]
+
+            evals_fatia = np.moveaxis(evals[:, v:v+1, :], 1, 2)
+            evecs_fatia = np.moveaxis(evecs[:, v:v+1, :], 1, 2)
+            cfa_fatia = np.moveaxis(cfa[:, v:v+1, :], 1, 2)
+            mask_f = np.moveaxis(mask[:, v:v+1, :], 1, 2)
             
         elif k == 'axial':
             image_ref = class_referencia[:,:,v]
             image_seg = volume_segmented [:,:,v]
             im_cor_ref = cor_ref[:, :, v, :]
             im_cor_seg = cor_seg[:, :, v, :]
+            evals_fatia = evals[:, :, v:v+1]
+            evecs_fatia = evecs[:, :, v:v+1]
+            cfa_fatia = cfa[:, :, v:v+1]
+            mask_f = mask[:, :, v:v+1]
+
+        # Criação do ator tensor slicer para a fatia escolhida
+        tensor_actor = actor.tensor_slicer(evals_fatia, evecs_fatia, 
+                                           scalar_colors=cfa_fatia, 
+                                           sphere=sphere, scale=0.8, 
+                                           opacity=1.0, mask=mask_f)
+        
+        if tensor_actor is not None:
+            scene.add(tensor_actor)
+            
+            # Define a cor do fundo da cena (R, G, B)
+            scene.background((0, 0, 0))  # Branco
+        
+            # Ajusta a câmera para visualizar a fatia de frente
+            scene.reset_camera()
+            # scene.set_camera(position=pos_camera, focal_point=focal_point, view_up=view_up)
+            scene.zoom(1.5)  # Ajuste o fator de zoom conforme necessário
+        
+            print('Saving illustration as tensor_ellipsoids.png')
+            window.record(scene, n_frames=1, out_path=img_dti, 
+                          size=(800, 800), magnification=1)
+        else:
+            print("Erro: tensor_actor é None.")
+    
         
                     
         m.update_state(image_ref, image_seg)
