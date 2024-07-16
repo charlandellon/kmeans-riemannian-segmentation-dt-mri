@@ -6,7 +6,7 @@ Created on Thu Nov 11 15:55:57 2021
 """
 from pymanopt.tools.multi import multilog, multiexp, multiprod, multitransp
 from pymanopt.core.problem import Problem
-from pymanopt.optimizers import  ConjugateGradient, SteepestDescent
+from pymanopt.solvers import  ConjugateGradient, SteepestDescent
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -15,7 +15,7 @@ from scipy.linalg import solve, norm, logm, inv, eig
 from dipy.data import get_sphere
 from dipy.viz import window, actor
 from dipy.reconst.dti import fractional_anisotropy, color_fa
-from pymanopt.optimizers.line_search import  AdaptiveLineSearcher as LineSearchAdaptive
+from pymanopt.solvers.linesearch import  LineSearchAdaptive #AdaptiveLineSearcher as LineSearchAdaptive
 
 
 

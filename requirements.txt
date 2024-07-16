@@ -4,7 +4,7 @@ matplotlib
 nibabel
 fury
 dipy
-pymanopt
+pymanopt==0.2.5
 geomstats
 cython
 easycython

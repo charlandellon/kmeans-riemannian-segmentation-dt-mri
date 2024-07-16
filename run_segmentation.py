@@ -2,16 +2,21 @@ import os
 import numpy as np
 from dipy.io.image import load_nifti, save_nifti
 from segment_dti import segmentation
+import time
+
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
+start_time = time.time()
 
 np.random.seed(seed=50) 
 
-expoent = 0.5
-n_claster = 3
+expoent = 1.5
+n_claster = 4
 
 dim_point = 3
 max_iterations = 100
 
-metric_type = 'euclidean'
+metric_type = 'riemannian' #'euclidean' #riemannian
 
 namebase = 'stanford_hardi_atualizado'
 
@@ -77,3 +82,7 @@ segmented_images = segmentation(dti, n_claster=n_claster, mask=mask, metric_type
 volume_seg = os.path.sep.join([seg_dir, 'data', 'segmented_DTI_3D.nii.gz'])
 save_nifti(volume_seg, np.array(segmented_images, 'int16'), affine)
     
+end_time = time.time()
+
+execution_time = end_time - start_time
+print(f"Tempo de execução: {execution_time} segundos")
